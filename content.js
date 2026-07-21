@@ -65,6 +65,18 @@
     return text ? `text:${text.slice(0, 240)}` : null;
   }
 
+  function isCompleteVisible(el) {
+    const rect = el.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    const tolerance = 2;
+
+    return rect.top >= -tolerance &&
+      rect.bottom <= viewportHeight + tolerance &&
+      rect.left >= -tolerance &&
+      rect.right <= viewportWidth + tolerance;
+  }
+
   function getVisibleRatio(el) {
     const rect = el.getBoundingClientRect();
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
@@ -89,10 +101,8 @@
   }
 
   function scanVisiblePosts() {
-    const threshold = window.innerHeight < 900 ? 0.35 : 0.4;
-
     for (const post of getFeedPosts()) {
-      if (getVisibleRatio(post) >= threshold) markReadPost(post);
+      if (isCompleteVisible(post)) markReadPost(post);
     }
   }
 
@@ -142,7 +152,7 @@
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) scheduleUpdate();
       },
-      { threshold: [0.35, 0.4, 0.5] }
+      { threshold: [0, 0.5, 1] }
     );
 
     getFeedPosts().forEach((post) => state.intersectionObserver.observe(post));
@@ -162,3 +172,6 @@
     init();
   }
 })();
+
+
+
