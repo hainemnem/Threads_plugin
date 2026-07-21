@@ -9,7 +9,9 @@
     readKeys: new Set(),
     fallbackReadPosts: new WeakSet(),
     readCount: 0,
-    postLimit: 0
+    postLimit: 0,
+    readDate: '',
+    hydrated: false
   };
 
   // Threads currently uses data-pressable-container for feed cards.
@@ -21,6 +23,51 @@
     'article'
   ];
 
+  function getDateKey() {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return now.getFullYear() + '-' + month + '-' + day;
+  }
+
+  async function loadDailyState() {
+    const today = getDateKey();
+    const saved = await chrome.storage.local.get({
+      readDate: today,
+      readKeys: [],
+      readCount: 0
+    });
+
+    state.readDate = saved.readDate === today ? today : today;
+    state.readKeys = new Set(saved.readDate === today ? saved.readKeys : []);
+    state.readCount = saved.readDate === today ? Number(saved.readCount) || 0 : 0;
+    state.hydrated = true;
+
+    await chrome.storage.local.set({
+      readDate: today,
+      readKeys: Array.from(state.readKeys),
+      readCount: state.readCount
+    });
+  }
+
+  function resetIfNewDay() {
+    const today = getDateKey();
+    if (state.readDate === today) return;
+
+    state.readDate = today;
+    state.readKeys = new Set();
+    state.fallbackReadPosts = new WeakSet();
+    state.readCount = 0;
+    void chrome.storage.local.set({ readDate: today, readKeys: [], readCount: 0 });
+  }
+
+  function persistDailyState() {
+    void chrome.storage.local.set({
+      readDate: state.readDate,
+      readKeys: Array.from(state.readKeys),
+      readCount: state.readCount
+    });
+  }
   function ensureOverlay() {
     if (state.overlay) return;
 
@@ -99,6 +146,7 @@
     else state.fallbackReadPosts.add(post);
 
     state.readCount += 1;
+    persistDailyState();
   }
 
   function scanVisiblePosts() {
@@ -133,6 +181,8 @@
     if (label) label.style.color = reached ? '#ff3b30' : '';
   }
   function updateCounter() {
+    if (!state.hydrated) return;
+    resetIfNewDay();
     ensureOverlay();
     syncTheme();
     scanVisiblePosts();
@@ -202,7 +252,8 @@
     state.postLimit = Number(message.limit) || 0;
     updateCounter();
   });
-  function init() {
+  async function init() {
+    await loadDailyState();
     ensureOverlay();
     attachObservers();
     window.addEventListener('scroll', scheduleUpdate, { passive: true });
@@ -216,6 +267,10 @@
     init();
   }
 })();
+
+
+
+
 
 
 
