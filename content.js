@@ -1,16 +1,19 @@
-(function () {
+﻿(function () {
   const state = {
     overlay: null,
     countNode: null,
-    observer: null,
+    mutationObserver: null,
     resizeObserver: null,
-    mo: null,
-    tickScheduled: false
+    tickScheduled: false,
+    readPosts: new WeakSet(),
+    readCount: 0
   };
 
-  const SELECTORS = [
+  const POST_SELECTORS = [
     'main article',
-    'article'
+    'main [role="article"]',
+    'article',
+    '[role="article"]'
   ];
 
   function ensureOverlay() {
@@ -19,7 +22,7 @@
     const overlay = document.createElement('div');
     overlay.id = 'threads-read-counter';
     overlay.innerHTML = `
-      <div class="trc-label">Visible posts</div>
+      <div class="trc-label">Posts read</div>
       <div class="trc-count">0</div>
     `;
 
@@ -28,12 +31,22 @@
     state.countNode = overlay.querySelector('.trc-count');
   }
 
-  function getFeedArticles() {
-    const articles = new Set();
-    for (const selector of SELECTORS) {
-      document.querySelectorAll(selector).forEach((el) => articles.add(el));
+  function getFeedPosts() {
+    const posts = new Set();
+
+    for (const selector of POST_SELECTORS) {
+      document.querySelectorAll(selector).forEach((el) => posts.add(el));
     }
-    return [...articles];
+
+    document.querySelectorAll('main a[href*="/post/"]').forEach((link) => {
+      const post = link.closest('[role="article"], article');
+      if (post) posts.add(post);
+    });
+
+    return [...posts].filter((post) => {
+      const rect = post.getBoundingClientRect();
+      return rect.width > 180 && rect.height > 80 && post.closest('main');
+    });
   }
 
   function getVisibleRatio(el) {
@@ -45,25 +58,30 @@
 
     if (visibleWidth <= 0 || visibleHeight <= 0) return 0;
 
-    const visibleArea = visibleWidth * visibleHeight;
-    const totalArea = Math.max(rect.width * rect.height, 1);
-    return visibleArea / totalArea;
+    return (visibleWidth * visibleHeight) / Math.max(rect.width * rect.height, 1);
   }
 
-  function countVisiblePosts() {
-    const articles = getFeedArticles();
-    if (!articles.length) return 0;
+  function markReadPosts() {
+    const threshold = window.innerHeight < 900 ? 0.48 : 0.5;
 
-    const threshold = window.innerHeight < 900 ? 0.55 : 0.5;
-
-    return articles.filter((article) => getVisibleRatio(article) >= threshold).length;
+    for (const post of getFeedPosts()) {
+      if (!state.readPosts.has(post) && getVisibleRatio(post) >= threshold) {
+        state.readPosts.add(post);
+        state.readCount += 1;
+      }
+    }
   }
 
   function updateOverlay() {
     ensureOverlay();
-    const visibleCount = countVisiblePosts();
-    state.countNode.textContent = String(visibleCount);
-    state.overlay.dataset.active = visibleCount > 0 ? 'true' : 'false';
+    markReadPosts();
+    state.countNode.textContent = String(state.readCount);
+    state.overlay.dataset.active = state.readCount > 0 ? 'true' : 'false';
+
+    chrome.runtime.sendMessage({
+      type: 'threads-read-count',
+      count: state.readCount
+    }).catch(() => {});
   }
 
   function scheduleUpdate() {
@@ -77,11 +95,19 @@
   }
 
   function attachObservers() {
-    if (state.mo) state.mo.disconnect();
+    if (state.mutationObserver) state.mutationObserver.disconnect();
     if (state.resizeObserver) state.resizeObserver.disconnect();
 
-    state.mo = new MutationObserver(scheduleUpdate);
-    state.mo.observe(document.body, { childList: true, subtree: true });
+    state.mutationObserver = new MutationObserver((records) => {
+      if (records.some((record) => {
+        const target = record.target;
+        return target.nodeType !== Node.ELEMENT_NODE ||
+          !target.closest('#threads-read-counter');
+      })) {
+        scheduleUpdate();
+      }
+    });
+    state.mutationObserver.observe(document.body, { childList: true, subtree: true });
 
     state.resizeObserver = new ResizeObserver(scheduleUpdate);
     state.resizeObserver.observe(document.documentElement);

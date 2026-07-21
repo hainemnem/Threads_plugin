@@ -1,13 +1,21 @@
-{
+﻿{
   "manifest_version": 3,
   "name": "Threads Read Counter",
-  "version": "1.0.0",
-  "description": "Counts how many Threads posts are visible/read in the feed.",
+  "version": "1.2.0",
+  "description": "Counts Threads posts as you read them.",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Threads posts read"
+  },
   "content_scripts": [
     {
       "matches": [
         "https://www.threads.net/*",
-        "https://threads.net/*"
+        "https://threads.net/*",
+        "https://www.threads.com/*",
+        "https://threads.com/*"
       ],
       "js": ["content.js"],
       "css": ["styles.css"],
