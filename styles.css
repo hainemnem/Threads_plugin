@@ -1,0 +1,47 @@
+#threads-read-counter {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147483647;
+  min-width: 118px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(20, 20, 20, 0.82);
+  color: #fff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+}
+
+#threads-read-counter[data-active="false"] {
+  opacity: 0.55;
+}
+
+#threads-read-counter .trc-label {
+  font-size: 12px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 4px;
+}
+
+#threads-read-counter .trc-count {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  #threads-read-counter {
+    right: 14px;
+    bottom: 14px;
+    min-width: 104px;
+    padding: 10px 12px;
+  }
+
+  #threads-read-counter .trc-count {
+    font-size: 24px;
+  }
+}
