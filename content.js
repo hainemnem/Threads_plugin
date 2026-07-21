@@ -4,16 +4,20 @@
     countNode: null,
     mutationObserver: null,
     resizeObserver: null,
+    intersectionObserver: null,
     tickScheduled: false,
-    readPosts: new WeakSet(),
+    readKeys: new Set(),
+    fallbackReadPosts: new WeakSet(),
     readCount: 0
   };
 
+  // Threads currently uses data-pressable-container for feed cards.
   const POST_SELECTORS = [
+    'div[data-pressable-container="true"]',
+    'article[role="article"]',
     'main article',
     'main [role="article"]',
-    'article',
-    '[role="article"]'
+    'article'
   ];
 
   function ensureOverlay() {
@@ -35,18 +39,30 @@
     const posts = new Set();
 
     for (const selector of POST_SELECTORS) {
-      document.querySelectorAll(selector).forEach((el) => posts.add(el));
+      document.querySelectorAll(selector).forEach((post) => posts.add(post));
     }
 
-    document.querySelectorAll('main a[href*="/post/"]').forEach((link) => {
-      const post = link.closest('[role="article"], article');
-      if (post) posts.add(post);
-    });
-
     return [...posts].filter((post) => {
+      if (post.closest('#threads-read-counter')) return false;
+
       const rect = post.getBoundingClientRect();
-      return rect.width > 180 && rect.height > 80 && post.closest('main');
+      const textLength = (post.textContent || '').trim().length;
+      return rect.width > 180 && rect.height > 80 && textLength > 20;
     });
+  }
+
+  function getPostKey(post) {
+    const link = post.querySelector('a[href*="/post/"]');
+    if (link?.href) return `url:${link.href.split('?')[0]}`;
+
+    const id = post.getAttribute('data-interactive-id') ||
+      post.getAttribute('data-id') ||
+      post.id;
+    if (id) return `id:${id}`;
+
+    // Virtualized feeds may reuse one DOM node for a different post.
+    const text = (post.textContent || '').replace(/\\s+/g, ' ').trim();
+    return text ? `text:${text.slice(0, 240)}` : null;
   }
 
   function getVisibleRatio(el) {
@@ -61,20 +77,29 @@
     return (visibleWidth * visibleHeight) / Math.max(rect.width * rect.height, 1);
   }
 
-  function markReadPosts() {
-    const threshold = window.innerHeight < 900 ? 0.48 : 0.5;
+  function markReadPost(post) {
+    const key = getPostKey(post);
+    const alreadyRead = key ? state.readKeys.has(key) : state.fallbackReadPosts.has(post);
+    if (alreadyRead) return;
+
+    if (key) state.readKeys.add(key);
+    else state.fallbackReadPosts.add(post);
+
+    state.readCount += 1;
+  }
+
+  function scanVisiblePosts() {
+    const threshold = window.innerHeight < 900 ? 0.35 : 0.4;
 
     for (const post of getFeedPosts()) {
-      if (!state.readPosts.has(post) && getVisibleRatio(post) >= threshold) {
-        state.readPosts.add(post);
-        state.readCount += 1;
-      }
+      if (getVisibleRatio(post) >= threshold) markReadPost(post);
     }
   }
 
-  function updateOverlay() {
+  function updateCounter() {
     ensureOverlay();
-    markReadPosts();
+    scanVisiblePosts();
+
     state.countNode.textContent = String(state.readCount);
     state.overlay.dataset.active = state.readCount > 0 ? 'true' : 'false';
 
@@ -90,13 +115,14 @@
 
     requestAnimationFrame(() => {
       state.tickScheduled = false;
-      updateOverlay();
+      updateCounter();
     });
   }
 
   function attachObservers() {
-    if (state.mutationObserver) state.mutationObserver.disconnect();
-    if (state.resizeObserver) state.resizeObserver.disconnect();
+    state.mutationObserver?.disconnect();
+    state.resizeObserver?.disconnect();
+    state.intersectionObserver?.disconnect();
 
     state.mutationObserver = new MutationObserver((records) => {
       if (records.some((record) => {
@@ -111,6 +137,15 @@
 
     state.resizeObserver = new ResizeObserver(scheduleUpdate);
     state.resizeObserver.observe(document.documentElement);
+
+    state.intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) scheduleUpdate();
+      },
+      { threshold: [0.35, 0.4, 0.5] }
+    );
+
+    getFeedPosts().forEach((post) => state.intersectionObserver.observe(post));
   }
 
   function init() {
