@@ -8,7 +8,8 @@
     tickScheduled: false,
     readKeys: new Set(),
     fallbackReadPosts: new WeakSet(),
-    readCount: 0
+    readCount: 0,
+    postLimit: 0
   };
 
   // Threads currently uses data-pressable-container for feed cards.
@@ -122,6 +123,15 @@
 
     state.overlay.dataset.theme = isLightPage ? 'light' : 'dark';
   }
+  function applyLimitState() {
+    if (!state.overlay) return;
+
+    const reached = state.postLimit > 0 && state.readCount >= state.postLimit;
+    state.overlay.dataset.limitReached = reached ? 'true' : 'false';
+    state.countNode.style.color = reached ? '#ff3b30' : '';
+    const label = state.overlay.querySelector('.trc-label');
+    if (label) label.style.color = reached ? '#ff3b30' : '';
+  }
   function updateCounter() {
     ensureOverlay();
     syncTheme();
@@ -129,6 +139,7 @@
 
     state.countNode.textContent = String(state.readCount);
     state.overlay.dataset.active = state.readCount > 0 ? 'true' : 'false';
+    applyLimitState();
 
     chrome.runtime.sendMessage({
       type: 'threads-read-count',
@@ -175,6 +186,22 @@
     getFeedPosts().forEach((post) => state.intersectionObserver.observe(post));
   }
 
+  chrome.storage.local.get({ postLimit: 0 }).then(({ postLimit }) => {
+    state.postLimit = Number(postLimit) || 0;
+    applyLimitState();
+  }).catch(() => {});
+
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === 'threads-limit-state') {
+      state.postLimit = Number(message.limit) || state.postLimit;
+      applyLimitState();
+      return;
+    }
+
+    if (message?.type !== 'threads-limit-changed') return;
+    state.postLimit = Number(message.limit) || 0;
+    updateCounter();
+  });
   function init() {
     ensureOverlay();
     attachObservers();
@@ -189,6 +216,13 @@
     init();
   }
 })();
+
+
+
+
+
+
+
 
 
 

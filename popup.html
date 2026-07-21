@@ -1,0 +1,28 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Threads Read Counter</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="popup">
+    <h1>Threads Read Counter</h1>
+    <p class="description">Set a post limit. Without a limit, the badge stays green.</p>
+
+    <form id="limit-form">
+      <label for="post-limit">Post limit</label>
+      <input id="post-limit" name="post-limit" type="number" min="1" step="1" placeholder="Leave empty for no limit">
+      <button type="submit">Save limit</button>
+    </form>
+
+    <button id="reload-page" class="reload-button" type="button" hidden>
+      ↻ Reload Threads to apply
+    </button>
+
+    <p class="hint">The badge turns red only after the saved limit is reached.</p>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

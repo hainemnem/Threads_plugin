@@ -70,3 +70,11 @@
     color: rgba(16, 16, 16, 0.62);
   }
 }
+
+#threads-read-counter[data-limit-reached="true"] .trc-count {
+  color: #ff3b30;
+}
+
+#threads-read-counter[data-limit-reached="true"] .trc-label {
+  color: #ff3b30;
+}
