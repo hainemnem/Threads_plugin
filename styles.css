@@ -1,7 +1,7 @@
 ﻿#threads-read-counter {
   position: fixed;
   right: 24px;
-  bottom: 24px;
+  top: 24px;
   z-index: 2147483647;
   min-width: 92px;
   padding: 12px 14px;
@@ -36,12 +36,37 @@
 @media (max-width: 900px) {
   #threads-read-counter {
     right: 14px;
-    bottom: 14px;
+    top: 14px;
     min-width: 104px;
     padding: 10px 12px;
   }
 
   #threads-read-counter .trc-count {
     font-size: 24px;
+  }
+}
+
+
+#threads-read-counter[data-theme="light"] {
+  border-color: rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.96);
+  color: #101010;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+}
+
+#threads-read-counter[data-theme="light"] .trc-label {
+  color: rgba(16, 16, 16, 0.62);
+}
+
+@media (prefers-color-scheme: light) {
+  #threads-read-counter:not([data-theme="dark"]) {
+    border-color: rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.96);
+    color: #101010;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+  }
+
+  #threads-read-counter:not([data-theme="dark"]) .trc-label {
+    color: rgba(16, 16, 16, 0.62);
   }
 }

@@ -106,8 +106,25 @@
     }
   }
 
+  function syncTheme() {
+    if (!state.overlay) return;
+
+    const pageRoot = document.documentElement;
+    const body = document.body;
+    const rootStyle = getComputedStyle(pageRoot);
+    const bodyStyle = body ? getComputedStyle(body) : null;
+    const bodyColor = bodyStyle?.backgroundColor;
+    const pageColor = bodyColor && bodyColor !== 'rgba(0, 0, 0, 0)' && bodyColor !== 'transparent'
+      ? bodyColor
+      : rootStyle.backgroundColor;
+    const rgb = pageColor.match(/\d+/g)?.map(Number) || [];
+    const isLightPage = rgb.length >= 3 && (rgb[0] + rgb[1] + rgb[2]) > 420;
+
+    state.overlay.dataset.theme = isLightPage ? 'light' : 'dark';
+  }
   function updateCounter() {
     ensureOverlay();
+    syncTheme();
     scanVisiblePosts();
 
     state.countNode.textContent = String(state.readCount);
@@ -172,6 +189,9 @@
     init();
   }
 })();
+
+
+
 
 
 
